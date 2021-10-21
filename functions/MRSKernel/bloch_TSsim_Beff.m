@@ -19,11 +19,11 @@ function [flip, phase,Mxy, MM, alpha_Beff, Factor_adiabatic] = bloch_TSsim_Beff(
 % Output:
 %   flip        : flip angle [rad]
 %   phase       : phase angle [rad]
-%   MM          : vector of the magnetisation [x y z]
+%   MM          : vector of the magnetization [x y z]
 %   alpha_Beff  : vector of the flip angle of Beff (rotation about the y-axis starts at z-axis) [rad]
 %   ID_adiabatic: check if under adiabatic condition
 %                   1: adiabatic condition;         abs(gamma*Beff) > dalpha_Beff;
-%                   0: non adiabatic condiction ;   abs(gamma*Beff) < dalpha_Beff;
+%                   0: non adiabatic condition ;   abs(gamma*Beff) < dalpha_Beff;
 
 
 t       = t(:);
@@ -34,12 +34,12 @@ df      = df(:);
 fgrad   = 0; %Allows to simulate the impact of dephasing dependent on off resonance frequency fgrad
 
 
-gamma   = 267.513e6; % gyromagnetic ratio proton [rad s-1 T-1]
+gamma   = 267.513e6; % gyro-magnetic ratio proton [rad s-1 T-1]
 rf      = gamma.*B1(:).*dt; % Rotation in radians. per timestep dT
 
 % calculate Beff
 Bz          = 2*pi*df./gamma;
-XYZBeff     = [B1, zeros(size(B1)), Bz]; % XYZ coordianted of Beff
+XYZBeff     = [B1, zeros(size(B1)), Bz]; % XYZ coordinates of Beff
 Beff        = sqrt(B1.^2+Bz.^2); % amplitude of effective B in RF frame
 
 alpha_Beff  = atan((gamma.*B1) ./ (2*pi*df) ); % flip angle of Beff in RF frame
@@ -48,31 +48,32 @@ dalpha_Beff = diff([0; alpha_Beff])./dt;
 % epsilon     = atan((dalpha_Beff/gamma)./(Beff));
 
 % calculation of a factor to describe if the adiabatic condition is true
-% for every time step (adiabatic condition after tannus 1997)
+% for every time step (adiabatic condition after Tannus 1997)
 % x = 2; % X >>1
-% ID_adiabatic = abs(gamma*Beff) > X*abs(dalpha_Beff); % adiabatic condition after tannus 1997
+% ID_adiabatic = abs(gamma*Beff) > X*abs(dalpha_Beff); % adiabatic condition after Tannus 1997
 Factor_adiabatic = abs(gamma*Beff) ./ abs(dalpha_Beff); %
 
-%% Simulation the bloch equation
+%% Simulation the Bloch equation
 M   = [0;0;1];
 MM  = zeros(3,length(rf));
 
-M   = Nrot(-Beff(1)*gamma*dt(1),XYZBeff(1,:)) * M; % first nutation about Beff
+M   = Nrot(Beff(1)*gamma*dt(1),XYZBeff(1,:)) * M; % first nutation about Beff
 MM(:,1) = M;
 for k = 2:length(rf)
     if RDP.flag==1 % precession and T relaxation 
         [A,B]   = freeprecess(dt(k),RDP.T1,RDP.T2,fgrad);   % consider to remove T if faster!!!
         M       = A*M+B;                                    % Propagate to next pulse.
     end
-    M   = Nrot(-Beff(k)*gamma*dt(k),XYZBeff(k,:)) * M; % nutation about Beff is negativ for protons
+    M   = Nrot(Beff(k)*gamma*dt(k),XYZBeff(k,:)) * M; % nutation about Beff is negative for protons
     MM(:,k) = M;
-end;
+end
 
 %% Output 
 
 flip        = atan2( sqrt(M(1)^2+M(2)^2), M(3) );
 phase       = atan2(M(2),M(1));
-Mxy         = M(2) + i*M(1); % Complex M in x-y plane; Pulse parallel to x- axis; on res pulse leads to real signal!!!
+% Mxy         = M(2) + 1i*M(1); % Complex M in x-y plane; Pulse parallel to x- axis; on res pulse leads to real signal!!!
+Mxy         = M(1) + 1i*M(2); % changed 20190123
 MM          = MM;
 alpha_Beff  = alpha_Beff;
 ID_adiabatic= ID_adiabatic;

@@ -554,6 +554,11 @@ end
                     'HorizontalAlignment', 'left',...
                     'String', 'keep this recording');
                 uiextras.HBox('Parent', box_v24_h1);   % empty
+%                 gui.panel_controls.pushbutton_searchKeep = uicontrol(...
+%                     'Style', 'Pushbutton', ...
+%                     'Parent', box_v24_h1, ...
+%                     'String', 'search',...
+%                     'Callback', @onSearchKeep);
                 gui.panel_controls.pushbutton_checkKeep = uicontrol(...
                     'Style', 'Pushbutton', ...
                     'Parent', box_v24_h1, ...
@@ -565,7 +570,8 @@ end
                     'String', 'Fix Phase Cycle',...
                     'Callback', @onFixKeepPhaseCycle);
                 
-                set(box_v24_h1, 'Sizes', [20 100 -1 100 150])
+%                 set(box_v24_h1, 'Sizes', [20 100 -1 50 100 100])
+                set(box_v24_h1, 'Sizes', [20 100 -1 100 100])
             set(box_v24, 'Sizes', [20 20])
             
         %set(box_v2_base, 'Sizes', [140 80 130 80 60]);
@@ -1402,10 +1408,22 @@ end
 
         mrsSigPro_plotdata(gui,fdata,proclog);
     end
+    function onSearchKeep(a,b) % scan q
+        iQ   = get(gui.panel_controls.popupmenu_Q, 'Value');
+        irec = get(gui.panel_controls.popupmenu_REC, 'Value');
+        irx  = get(gui.panel_controls.popupmenu_RX, 'Value');
+        isig = get(gui.panel_controls.popupmenu_SIG, 'Value');
+        proclog = mrsSigPro_search_keep(fdata,proclog,iQ,irec,irx,isig);
+        % update keep
+        set(gui.panel_controls.checkbox_keep,'Value', mrs_getkeep(proclog,iQ,irec,irx,isig));
+        mrsSigPro_plotdata(gui,fdata,proclog);
+    end
     function onCheckPhaseCycle(a,b)
         proceed = mrsSigPro_check_keep_phasecycle(fdata,proclog); 
         if proceed == 1
             msgbox('odd and even number of records is equal. ')
+        elseif proceed==2
+            msgbox('only GMR used phasecycling - no need to check ')
         end
     end
     function onFixKeepPhaseCycle(a,b)
@@ -1423,6 +1441,8 @@ end
         proceed = mrsSigPro_check_keep_phasecycle(fdata,proclog);
         if proceed == 1
             msgbox('odd and even number of records is equal. ')
+        elseif proceed==2
+            msgbox('only GMR used phasecycling - no need to fix ')    
         else
             msgbox('Run Fix again')
         end
@@ -2310,7 +2330,7 @@ end
         if get(gui.panel_controls.radio_DelHarmonicOn,'Value') == 1
             hSource = get(gui.panel_controls.edit_DelHarmonic_frequency, 'Value');
             removeCof = get(gui.panel_controls.check_removeCof, 'Value');
-            fastHNC   = get(gui.panel_controls.check_removeCof, 'Value');
+            fastHNC   = get(gui.panel_controls.check_fastHNC, 'Value');
             [fdata, proclog] = mrsSigPro_DelHarmonic(fdata,proclog,hSource,removeCof,fastHNC, iQ,irec,irx,isig,a); 
             %removeCof=0;
             %fdata = mrsSigPro_DelHarmonic_Qi(fdata,proclog,hSource,removeCof,iQ,irec,irx,isig);
@@ -2318,7 +2338,7 @@ end
         if get(gui.panel_controls.radio_DelHarmonicOn_2,'Value') == 1
             hSource = get(gui.panel_controls.edit_DelHarmonic_frequency_2, 'Value');
             removeCof = get(gui.panel_controls.check_removeCof, 'Value');
-            fastHNC   = get(gui.panel_controls.check_removeCof, 'Value');
+            fastHNC   = get(gui.panel_controls.check_fastHNC, 'Value');
             [fdata, proclog] = mrsSigPro_DelHarmonic(fdata,proclog,hSource,removeCof,fastHNC, iQ,irec,irx,isig,a);
         end
         

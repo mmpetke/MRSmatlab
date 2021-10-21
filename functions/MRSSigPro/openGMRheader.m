@@ -148,7 +148,7 @@ switch header.DAQversion
             header.coil(ic).decl = fcontent{(ic-1)*6+26};% 26	Coil 1 Declination Angle	e.g. 5; (0)
         end
 
-           case {2.99} % header has 68 entries (V 2.99 has 70 entries!!)
+    case {2.99} % header has 68 entries (V 2.99 has 70 entries!!)
         
         % reread header
         fseek(fidh,0,'bof');                % return to begin of header file

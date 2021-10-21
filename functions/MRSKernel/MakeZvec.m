@@ -36,7 +36,7 @@ switch model.z_space
         
         model.z  = (z_vec(2:end)+z_vec(1:end-1))/2;
         model.Dz = z_vec(2:end)-z_vec(1:end-1);
-        
+        model.z_vec = z_vec;
         
     case 2 % loglin
         dzlogmin      = model.LL_dzmin;  % minimum layer thickness in log part

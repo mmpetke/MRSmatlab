@@ -1,6 +1,7 @@
 function mrs_Modelling_plotdata(gui, mdata, kdata)
 
 scaleV = 1e9;
+scaleB = 1e15;
 scaleT = 1e0;
 weight = repmat(kdata.model.Dz,size(kdata.K,1),1);
 
@@ -9,14 +10,29 @@ figure(gui.fig_graphs)
     fs=10;
     clf
     subplot(1,6,1:2)
-    kplt = pcolor(kdata.measure.pm_vec, kdata.model.z, (abs(kdata.K)./weight).');
-    axis ij
-    shading flat
+    switch kdata.loop.shape
+        case {7}
+            kplt = pcolor(kdata.measure.pm_vec, kdata.model.z, (real(kdata.K)./(weight./scaleV)).');
+        case {8}
+            kplt = pcolor(kdata.measure.pm_vec, kdata.model.z, (imag(kdata.K)./(weight./scaleB)).');
+        otherwise
+            if size(kdata.K,1) == 1
+                kplt = plot((abs(kdata.K)./(weight./scaleV)).',kdata.model.z);
+            else
+                kplt = pcolor(kdata.measure.pm_vec, kdata.model.z, (abs(kdata.K)./(weight./scaleV)).');
+            end
+    end
+    if size(kdata.K,1) == 1
+        xlabel('amplitude [nV/m]', 'Fontsize', fs)
+    else
+        shading flat
+        xlabel('pulse moment q [As]', 'Fontsize', fs)
+    end
+    axis ij    
     box on
     grid on
     set(gca, 'layer', 'top')
-    title('kernel', 'FontSize', fs)
-    xlabel('pulse moment q [As]', 'Fontsize', fs)
+    title('kernel', 'FontSize', fs)    
     ylabel('depth [m]', 'Fontsize', fs)
 
     subplot (1,6,3)
@@ -51,7 +67,6 @@ figure(gui.fig_graphs)
     xlim(scaleT*[0 ceil(max(mdata.mod.T2s*100))/100+0.05])
     xlabel('[s]', 'Fontsize', fs)
 
-
     subplot(1,6,6)
     stairs(scaleT*[mdata.mod.T1(1) mdata.mod.T1],mdata.mod.zlayer)
     title('T_1/T_2', 'FontSize', fs)
@@ -70,10 +85,21 @@ switch kdata.measure.pulsesequence
         clf
         subplot(141)
         hold on
-        plot(abs(mdata.dat.v0)*scaleV, kdata.measure.pm_vec, 'bx')
-        plot(abs(mdata.dat.V0fit)*scaleV, kdata.measure.pm_vec, 'ro')
-        ylabel('q/A.s');
-        xlabel('amplitude/nV')
+        switch kdata.loop.shape
+            case {7}
+                plot(real(mdata.dat.v0)*scaleV, kdata.measure.pm_vec, 'bx')
+                plot(real(mdata.dat.V0fit)*scaleV, kdata.measure.pm_vec, 'ro')
+                xlabel('real/nV')
+            case {8}
+                plot(imag(mdata.dat.v0)*scaleB, kdata.measure.pm_vec, 'bx')
+                plot(imag(mdata.dat.V0fit)*scaleB, kdata.measure.pm_vec, 'ro')
+                xlabel('imag/fT')
+            otherwise
+                plot(abs(mdata.dat.v0)*scaleV, kdata.measure.pm_vec, 'bx')
+                plot(abs(mdata.dat.V0fit)*scaleV, kdata.measure.pm_vec, 'ro')
+                xlabel('amplitude/nV')
+        end        
+        ylabel('q/A.s');        
         legend('true initials', 'monofit','Location','SouthWest')
         axis ij
         grid on
@@ -136,19 +162,27 @@ clf
 switch kdata.measure.pulsesequence
     case 1%'FID'
         subplot(121)
-        pcolor(mdata.mod.tfid1,kdata.measure.pm_vec,real(mdata.dat.fid1).*scaleV)
+        if size(kdata.K,1) == 1
+            plot(mdata.mod.tfid1,real(mdata.dat.fid1).*scaleV)
+        else
+            pcolor(mdata.mod.tfid1,kdata.measure.pm_vec,real(mdata.dat.fid1).*scaleV)
+            xlabel('pulse moment Q [As]')
+            colorbar
+        end
         axis ij; shading flat
         set(gca,'yscale','log','xscale','log')
-        colorbar
-        xlabel('pulse moment Q [As]')
         ylabel('time [s]')
         title('real [nV]')
         subplot(122)
-        pcolor(mdata.mod.tfid1,kdata.measure.pm_vec,imag(mdata.dat.fid1).*scaleV)
+        if size(kdata.K,1) == 1
+            plot(mdata.mod.tfid1,imag(mdata.dat.fid1).*scaleV)
+        else
+            pcolor(mdata.mod.tfid1,kdata.measure.pm_vec,imag(mdata.dat.fid1).*scaleV)
+            xlabel('pulse moment Q [As]')
+            colorbar
+        end        
         axis ij; shading flat
         set(gca,'yscale','log','xscale','log')
-        colorbar
-        xlabel('pulse moment Q [As]')
         ylabel('time [s]')
         title('imag [nV]')
     case 'T2'

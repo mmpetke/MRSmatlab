@@ -26,6 +26,7 @@ nsig = length(sig);
 
 % no phasecycling if not GMR - exit
 if strcmp(proclog.device,'GMR') == 0
+    proceed=2;
     return
 end
 

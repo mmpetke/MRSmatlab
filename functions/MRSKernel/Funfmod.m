@@ -21,7 +21,7 @@ switch shape
         elseif f_diff > 0
             df = (enddf)+(f_diff)*(CC - CC(end))/(CC(1)-CC(end));
         end  
-    case 1          % 1: constant
+    case 4          % 1: constant
         df      = ones(size(t)).*enddf;
 end
 end

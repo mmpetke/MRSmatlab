@@ -153,25 +153,35 @@ fdata    = struct();
     end
 
     function onLoadGMRHeader(a,b)
-        if b % get file from edit path
-            file               = get(gui.GMRfilepath,'String');
-            [fdata.header.path,fdata.header.filename] = fileparts(file);
-            fdata.header.path  = [fdata.header.path filesep];
-        else % get file from dialog       
-            [fdata.header.filename,fdata.header.path] = uigetfile({'*.*; *.*','pick header for GMR'},...
-                'MultiSelect','off',...
-                'Open GMR Header File');
-        end
+%         if b % get file from edit path
+%             file               = get(gui.GMRfilepath,'String');
+%             [fdata.header.path,fdata.header.filename] = fileparts(file);
+%             fdata.header.path  = [fdata.header.path filesep];
+%         else % get file from dialog       
+%             [fdata.header.filename,fdata.header.path] = uigetfile({'*.*; *.*','pick header for GMR'},...
+%                 'MultiSelect','off',...
+%                 'Open GMR Header File');
+%         end
         
         % get header
-        fdata.header.info  = importdata(fullfile(fdata.header.path,fdata.header.filename));
+%         fdata.header.info  = importdata(fullfile(fdata.header.path,fdata.header.filename));
+
+        [fdata.headerfilename,fdata.headerpath] = uigetfile({'*.*; *.*','pick header for GMR'},...
+                        'MultiSelect','off',...
+                        'Open GMR Header File');
+
+        fdata.header          = openGMRheader(fullfile(fdata.headerpath,fdata.headerfilename)); 
+        fdata.header.filename = fdata.headerfilename;
+        fdata.header.path     = fdata.headerpath;
+        fdata.info.sequence   = fdata.header.sequenceID;
+        
         
         % estimate number of files... instead of number of stacks!!!!!
         fid                 = 0;
         n                   = 1;
         fdata.filenumber    = [];
         while fid > -1
-            if fdata.header.info(10)<2.1
+            if fdata.header.DAQversion<2.1
                 fid = fopen([fdata.header.path fdata.header.filename '_' num2str(n)]);
             else
                 fid   = fopen([fdata.header.path fdata.header.filename '_' num2str(n) '.lvm'],'r','ieee-be');
@@ -191,86 +201,86 @@ fdata    = struct();
         end
               
         % check number of connected channels (extension box connected)
-        if fdata.header.info(10)<2.1
-            fid = fopen([fdata.header.path fdata.header.filename '_1']);
-            l   = fgetl(fid);
-            col = sscanf(l,'%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f');
-            fdata.header.connectedchannels = length(col)-5; % either 4 or 8
-            
-        else
-            fid   = fopen([fdata.header.path fdata.header.filename '_1.lvm'],'r','ieee-be');
-            temp1  = fread(fid,4);
-            temp2  = fread(fid,4);
-            siz    = [2^32 2^16 2^8 1]'; % calculate dimensions based on 4 bits
-            dim1   = sum(siz.*temp1);
-            dim2   = sum(siz.*temp2);
-            N_chan = dim1;
-            N_samp = dim2;
-            fdata.header.connectedchannels = N_chan-4;
-            fclose(fid);
-        end
+%         if fdata.header.DAQversion<2.1
+%             fid = fopen([fdata.header.path fdata.header.filename '_1']);
+%             l   = fgetl(fid);
+%             col = sscanf(l,'%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f');
+%             fdata.header.connectedchannels = length(col)-5; % either 4 or 8
+%             
+%         else
+%             fid   = fopen([fdata.header.path fdata.header.filename '_1.lvm'],'r','ieee-be');
+%             temp1  = fread(fid,4);
+%             temp2  = fread(fid,4);
+%             siz    = [2^32 2^16 2^8 1]'; % calculate dimensions based on 4 bits
+%             dim1   = sum(siz.*temp1);
+%             dim2   = sum(siz.*temp2);
+%             N_chan = dim1;
+%             N_samp = dim2;
+%             fdata.header.connectedchannels = N_chan-4;
+%             fclose(fid);
+%         end
         
         
-        switch fdata.header.info(1) % 1: FID; 2: 90-90; 3:  ; 4: 4phase T1
-            case 1
-                fdata.header.pulsesequence  = 1; 
-            case 2
-                fdata.header.pulsesequence  = 2;                 
-            case 4
-                fdata.header.pulsesequence  = 4;  
-        end
-        fdata.header.frequency      = fdata.header.info(2);         % Lamor frequency /Hz
-        fdata.header.taup           = fdata.header.info(4)/1e3;     % pulse length /s
-        fdata.header.tau            = fdata.header.info(5)/1e3;     % pulse delay /s between two pulses (T1/T2)
-        fdata.header.nQnRec         = fdata.header.info(7);         % number of pulse moments or stacks
-        fdata.header.capacitance    = fdata.header.info(8)/1e6;     % Tuning capacitance /F
-        fdata.header.TXversion      = fdata.header.info(9);         % Version transmitter; 1:8ms deadtime, 400 Imax; 2:5ms deadtime, 600 Imax
-        fdata.header.DAQversion     = fdata.header.info(10);        % Version DAQ
+%         switch fdata.header.info(1) % 1: FID; 2: 90-90; 3:  ; 4: 4phase T1
+%             case 1
+%                 fdata.header.pulsesequence  = 1; 
+%             case 2
+%                 fdata.header.pulsesequence  = 2;                 
+%             case 4
+%                 fdata.header.pulsesequence  = 4;  
+%         end
+%         fdata.header.frequency      = fdata.header.info(2);         % Lamor frequency /Hz
+%         fdata.header.taup           = fdata.header.info(4)/1e3;     % pulse length /s
+%         fdata.header.tau            = fdata.header.info(5)/1e3;     % pulse delay /s between two pulses (T1/T2)
+%         fdata.header.nQnRec         = fdata.header.info(7);         % number of pulse moments or stacks
+%         fdata.header.capacitance    = fdata.header.info(8)/1e6;     % Tuning capacitance /F
+%         fdata.header.TXversion      = fdata.header.info(9);         % Version transmitter; 1:8ms deadtime, 400 Imax; 2:5ms deadtime, 600 Imax
+%         fdata.header.DAQversion     = fdata.header.info(10);        % Version DAQ
         
-        if fdata.header.DAQversion  == 1                            % DAQ version 1.x
-            fdata.header.deadtime   = 8e-3;                        % deadtime between pulse and time series record /s
-            fdata.header.Qsampling  = 0;                            % Q sampling methode; 0: standard GMR; 1: user defined
-            fdata.header.preampgain = 500;                          % gain preamplifier
-            fdata.header.sampleFreq = 50e3;                         % sample frequency /Hz
-            fdata.header.nQnRec     = NaN;                          % different in this version
-            % put some defaults for user input
-            for irx=1:4
-            	fdata.UserData(irx).looptask  = NaN;
-            end
-            InfoTable = [fdata.UserData(1).looptask]';
-            for irx=2:4
-                InfoTable = [InfoTable [fdata.UserData(irx).looptask]'];
-            end
+%         if fdata.header.DAQversion  == 1                            % DAQ version 1.x
+%             fdata.header.deadtime   = 8e-3;                        % deadtime between pulse and time series record /s
+%             fdata.header.Qsampling  = 0;                            % Q sampling methode; 0: standard GMR; 1: user defined
+%             fdata.header.preampgain = 500;                          % gain preamplifier
+%             fdata.header.sampleFreq = 50e3;                         % sample frequency /Hz
+%             fdata.header.nQnRec     = NaN;                          % different in this version
+%             % put some defaults for user input
+%             for irx=1:4
+%             	fdata.UserData(irx).looptask  = NaN;
+%             end
+%             InfoTable = [fdata.UserData(1).looptask]';
+%             for irx=2:4
+%                 InfoTable = [InfoTable [fdata.UserData(irx).looptask]'];
+%             end
             
-        elseif fdata.header.DAQversion  >= 2                        % DAQ version 2.x
-            fdata.header.deadtime   = fdata.header.info(12)/1e3;    % deadtime between pulse and time series record /s
-            fdata.header.Qsampling  = fdata.header.info(13);        % Q sampling methode; 0: standard GMR; 1: user specified
-            fdata.header.preampgain = fdata.header.info(14);        % gain preamplifier
-            fdata.header.sampleFreq = fdata.header.info(15);        % sample frequency \Hz
-            % get values from header
+%         elseif fdata.header.DAQversion  >= 2                        % DAQ version 2.x
+%             fdata.header.deadtime   = fdata.header.info(12)/1e3;    % deadtime between pulse and time series record /s
+%             fdata.header.Qsampling  = fdata.header.info(13);        % Q sampling methode; 0: standard GMR; 1: user specified
+%             fdata.header.preampgain = fdata.header.info(14);        % gain preamplifier
+%             fdata.header.sampleFreq = fdata.header.info(15);        % sample frequency \Hz
+%             % get values from header
             
-            for irx=1:fdata.header.connectedchannels
+            for irx=1:fdata.header.nrx
                 fdata.UserData(irx).looptask = NaN;
             end
             InfoTable = [fdata.UserData(1).looptask]';
-            for irx=2:fdata.header.connectedchannels
+            for irx=2:fdata.header.nrx
                 InfoTable = [InfoTable [fdata.UserData(irx).looptask]'];
             end
-        end
+%         end
 
         
-        if fdata.header.Qsampling       ==   0 ;                    % Q sampling methode; standard GMR
-            fdata.header.stacks         = length(fdata.filenumber); % number of stacks    
-            fdata.header.Qnumber        = NaN;                      % number of Qs
-            
-        elseif fdata.header.Qsampling   ==   1 ;                    % Q sampling methode; user specified
-            fdata.header.stacks         = NaN;                      % number of stacks    
-            fdata.header.Qnumber        = length(fdata.filenumber); % number of Qs
-        end
+%         if fdata.header.Qsampling       ==   0 ;                    % Q sampling methode; standard GMR
+%             fdata.header.stacks         = length(fdata.filenumber); % number of stacks    
+%             fdata.header.Qnumber        = NaN;                      % number of Qs
+%             
+%         elseif fdata.header.Qsampling   ==   1 ;                    % Q sampling methode; user specified
+%             fdata.header.stacks         = NaN;                      % number of stacks    
+%             fdata.header.Qnumber        = length(fdata.filenumber); % number of Qs
+%         end
 
-        set(gui.GMRInfoTable,'Data',[fdata.header.pulsesequence; fdata.header.frequency; ...
-                                     fdata.header.taup*1e3; fdata.header.tau*1e3; fdata.header.stacks; ...
-                                     fdata.header.Qnumber;fdata.header.deadtime*1e3;...
+        set(gui.GMRInfoTable,'Data',[fdata.header.sequenceID; fdata.header.fT; ...
+                                     fdata.header.tau_p*1e3; fdata.header.tau_d*1e3; fdata.header.nrec; ...
+                                     fdata.header.nQ;fdata.header.tau_dead*1e3;...
                                      fdata.header.DAQversion;fdata.header.TXversion]);
         set(gui.GMRfilepath,'String',fullfile(fdata.header.path,fdata.header.filename));
 
@@ -292,7 +302,7 @@ fdata    = struct();
 
     function onModTabUser(hTable, EdtData)
         tabData=get(hTable,'Data');
-        for irx=1:fdata.header.connectedchannels
+        for irx=1:fdata.header.nrx
             fdata.UserData(irx).looptask  = tabData(1,irx);
         end
     end

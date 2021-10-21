@@ -34,7 +34,6 @@ if nargin < 2
 end
 
 fid   = fopen(midifile, 'r');
-
 % common fileheader
 head  = textscan(fid, '%*[^]] %*1c %[^\n]', 5);
 x.info.instrument = head{1}(1);
@@ -45,7 +44,260 @@ x.info.date       = head{1}(4);
 x.info.time       = head{1}(5);            
             
 % switch MIDI software revisions
-switch x.info.version{1}    
+switch x.info.version{1}(1:end-1)
+     case 'Software rev. 050318'
+        % read header section
+        head2  = textscan(fid, '%*[^]] %*1c %[^\n]', 17);
+        head = [head{1}; head2{1}];
+        x.info.pause      = str2double(char(head(6)));    % [s] 
+        x.info.samplfreq  = str2double(char(head(7)));    % sample frequency [Hz]
+        x.info.stacks     = str2double(char(head(8)));    
+        x.info.mode       = str2double(char(head(9)));
+        rectype           = head(10);
+            if strcmp(rectype,'0')
+                x.info.rectype = {'FID+REF'};
+            elseif strcmp(rectype,'1')
+                x.info.rectype = {'3 FID'};
+            end
+        x.info.tdead      = str2double(char(head(11)))/1000;    % [s]
+        x.info.q          = str2double(char(head(12)))/1000;    % [As]
+        x.info.phase      = str2num(cell2mat(head(13)))*pi/180; %#ok<ST2NM> % [rad]
+        x.info.gains      = str2num(cell2mat(head(14))); %#ok<ST2NM>
+        x.info.turns      = str2num(cell2mat(head(15))); %#ok<ST2NM>
+        x.info.area       = str2num(cell2mat(head(16))); %#ok<ST2NM>
+        x.info.pxtime     = str2num(cell2mat(head(17))); %#ok<ST2NM>
+        x.info.pxdelay     = str2double(char(head(18)))/1000;    % [s]what is that delay good for?
+        x.info.f_ref      = str2double(cell2mat(head(19)));
+        x.info.P1         = str2double(cell2mat(head(20)));
+        x.info.delay     = str2double(char(head(21)))/1000;    % [s]
+        x.info.P2         = str2double(cell2mat(head(22)));
+
+        fgetl(fid);     % ignore to end of current line
+        fgetl(fid);     % ignore empty line
+        fgetl(fid);     % ignore T2* fit headerline                    
+
+        T2sfitpar = textscan(fid, '%*[^:] %*1c %f %f %f %f', 7);       
+        % read up to ], then read & ignore :, then read three f's
+        % old fitparameters are not required. Repeated in q section.
+
+        fgetl(fid);     % ignore to end of current line
+        fgetl(fid);     % ignore empty line
+        fgetl(fid);     % ignore empty line                        
+
+        % read q parameter section, although all in this section is crap
+        % in this software version
+        fpos = ftell(fid);          % set file marker here
+        nql = 1;                    % count # of lines in q section
+        qsec{1} = fgetl(fid);       % read first line in q section
+        while ~isempty(qsec{nql})   % read to empty line after q section
+            nql = nql+1;
+            qsec{nql} = fgetl(fid); %#ok<AGROW>
+        end
+        fseek(fid, fpos, 'bof');  % return to marker at q sect
+        ql = 1:nql;
+        line_begin = ql(strcmp(qsec,'[Begin Results]'));    % identify line
+        line_end   = ql(strcmp(qsec,'[End Results]'));      % identify line
+        
+        qdata = textscan(fid, '%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f',...
+            line_end-line_begin-1, 'headerlines', 3);
+        x.fit.q       = qdata{1}/1000;             % [As]
+        x.fit.delay   = qdata{2}/1000;             % [s]
+        x.fit.f       = qdata{3};
+        x.fit.V0  = [qdata{4} qdata{7} qdata{10} qdata{13} qdata{16} qdata{19} qdata{22}];    % [V] (gain is included)
+        x.fit.T2s = [qdata{5} qdata{8} qdata{11} qdata{14} qdata{17} qdata{20} qdata{23}]; % [s]
+        x.fit.rms = [qdata{6} qdata{9} qdata{12} qdata{15} qdata{18} qdata{21} qdata{24}];   % [V]
+        
+        fseek(fid, fpos, 'bof');        % return to marker at q sect
+        for ql = 1:line_end
+            fgetl(fid);                 % go to [End Results]
+        end
+        fgetl(fid);                     % ignore empty line
+        
+        if skipdata == 0
+            % read data section
+            T2sdata = textscan(fid, '%f %f %f %f %f %f %f %f %f',...
+               'headerlines', 2, 'commentStyle', '[');
+            itd      = find(abs(T2sdata{1} - x.info.tdead) == min(abs(T2sdata{1} - x.info.tdead)));    
+            itd      = itd(1); %strange thing: in some noise data files zero time entries are added at end of time series
+            x.t      = T2sdata{1}(itd:end) - T2sdata{1}(itd);   % cut dead time & pulse
+            x.v(:,1) = T2sdata{2}(itd:end)/x.info.gains(1); % CH 1 [V]
+            x.v(:,2) = T2sdata{3}(itd:end)/x.info.gains(2); % CH 2 [V]
+            x.v(:,3) = T2sdata{4}(itd:end)/x.info.gains(3); % CH 3 [V]
+            x.I      = T2sdata{5}(1:itd);
+            x.v(:,4) = T2sdata{6}(itd:end)/x.info.gains(5); % CH 5 [V]
+            x.v(:,5) = T2sdata{7}(itd:end)/x.info.gains(6); % CH 6 [V]
+            x.v(:,6) = T2sdata{8}(itd:end)/x.info.gains(7); % CH 7 [V]
+            x.v(:,7) = T2sdata{9}(itd:end)/x.info.gains(8); % CH 8 [V]
+        end
+     case 'Software rev. 310317'
+        % read header section
+        head2  = textscan(fid, '%*[^]] %*1c %[^\n]', 17);
+        head = [head{1}; head2{1}];
+        x.info.pause      = str2double(char(head(6)));    % [s] 
+        x.info.samplfreq  = str2double(char(head(7)));    % sample frequency [Hz]
+        x.info.stacks     = str2double(char(head(8)));    
+        x.info.mode       = str2double(char(head(9)));
+        rectype           = head(10);
+            if strcmp(rectype,'0')
+                x.info.rectype = {'FID+REF'};
+            elseif strcmp(rectype,'1')
+                x.info.rectype = {'3 FID'};
+            end
+        x.info.tdead      = str2double(char(head(11)))/1000;    % [s]
+        x.info.q          = str2double(char(head(12)))/1000;    % [As]
+        x.info.phase      = str2num(cell2mat(head(13)))*pi/180; %#ok<ST2NM> % [rad]
+        x.info.gains      = str2num(cell2mat(head(14))); %#ok<ST2NM>
+        x.info.turns      = str2num(cell2mat(head(15))); %#ok<ST2NM>
+        x.info.area       = str2num(cell2mat(head(16))); %#ok<ST2NM>
+        x.info.pxtime     = str2num(cell2mat(head(17))); %#ok<ST2NM>
+        x.info.pxdelay     = str2double(char(head(18)))/1000;    % [s]what is that delay good for?
+        x.info.f_ref      = str2double(cell2mat(head(19)));
+        x.info.P1         = str2double(cell2mat(head(20)));
+        x.info.delay     = str2double(char(head(21)))/1000;    % [s]
+        x.info.P2         = str2double(cell2mat(head(22)));
+
+        fgetl(fid);     % ignore to end of current line
+        fgetl(fid);     % ignore empty line
+        fgetl(fid);     % ignore T2* fit headerline                    
+
+        T2sfitpar = textscan(fid, '%*[^:] %*1c %f %f %f %f', 7);       
+        % read up to ], then read & ignore :, then read three f's
+        % old fitparameters are not required. Repeated in q section.
+
+        fgetl(fid);     % ignore to end of current line
+        fgetl(fid);     % ignore empty line
+        fgetl(fid);     % ignore empty line                        
+
+        % read q parameter section, although all in this section is crap
+        % in this software version
+        fpos = ftell(fid);          % set file marker here
+        nql = 1;                    % count # of lines in q section
+        qsec{1} = fgetl(fid);       % read first line in q section
+        while ~isempty(qsec{nql})   % read to empty line after q section
+            nql = nql+1;
+            qsec{nql} = fgetl(fid); %#ok<AGROW>
+        end
+        fseek(fid, fpos, 'bof');  % return to marker at q sect
+        ql = 1:nql;
+        line_begin = ql(strcmp(qsec,'[Begin Results]'));    % identify line
+        line_end   = ql(strcmp(qsec,'[End Results]'));      % identify line
+        
+        qdata = textscan(fid, '%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f',...
+            line_end-line_begin-1, 'headerlines', 3);
+        x.fit.q       = qdata{1}/1000;             % [As]
+        x.fit.delay   = qdata{2}/1000;             % [s]
+        x.fit.f       = qdata{3};
+        x.fit.V0  = [qdata{4} qdata{7} qdata{10} qdata{13} qdata{16} qdata{19} qdata{22}];    % [V] (gain is included)
+        x.fit.T2s = [qdata{5} qdata{8} qdata{11} qdata{14} qdata{17} qdata{20} qdata{23}]; % [s]
+        x.fit.rms = [qdata{6} qdata{9} qdata{12} qdata{15} qdata{18} qdata{21} qdata{24}];   % [V]
+        
+        fseek(fid, fpos, 'bof');        % return to marker at q sect
+        for ql = 1:line_end
+            fgetl(fid);                 % go to [End Results]
+        end
+        fgetl(fid);                     % ignore empty line
+        
+        if skipdata == 0
+            % read data section
+            T2sdata = textscan(fid, '%f %f %f %f %f %f %f %f %f',...
+               'headerlines', 2, 'commentStyle', '[');
+            itd      = find(abs(T2sdata{1} - x.info.tdead) == min(abs(T2sdata{1} - x.info.tdead)));    
+            itd      = itd(1); %strange thing: in some noise data files zero time entries are added at end of time series
+            x.t      = T2sdata{1}(itd:end) - T2sdata{1}(itd);   % cut dead time & pulse
+            x.v(:,1) = T2sdata{2}(itd:end)/x.info.gains(1); % CH 1 [V]
+            x.v(:,2) = T2sdata{3}(itd:end)/x.info.gains(2); % CH 2 [V]
+            x.v(:,3) = T2sdata{4}(itd:end)/x.info.gains(3); % CH 3 [V]
+            x.I      = T2sdata{5}(1:itd);
+            x.v(:,4) = T2sdata{6}(itd:end)/x.info.gains(5); % CH 5 [V]
+            x.v(:,5) = T2sdata{7}(itd:end)/x.info.gains(6); % CH 6 [V]
+            x.v(:,6) = T2sdata{8}(itd:end)/x.info.gains(7); % CH 7 [V]
+            x.v(:,7) = T2sdata{9}(itd:end)/x.info.gains(8); % CH 8 [V]
+        end
+        
+    case 'Software rev. 141011'
+        
+        % read header section
+        head2  = textscan(fid, '%*[^]] %*1c %[^\n]', 16);
+        head = [head{1}; head2{1}];
+        x.info.pause      = str2double(char(head(6)));    % [s] 
+        x.info.samplfreq  = str2double(char(head(7)));    % sample frequency [Hz]
+        x.info.stacks     = str2double(char(head(8)));    
+        x.info.mode       = str2double(char(head(9)));
+        rectype           = head(10);
+            if strcmp(rectype,'0')
+                x.info.rectype = {'FID+REF'};
+            elseif strcmp(rectype,'1')
+                x.info.rectype = {'3 FID'};
+            end
+        x.info.references = head(11);
+        x.info.tdead      = str2double(char(head(12)))/1000;    % [s]
+        x.info.q          = str2double(char(head(13)))/1000;    % [As]
+        x.info.phase      = str2num(cell2mat(head(14)))*pi/180; %#ok<ST2NM> % [rad]
+        x.info.gains      = str2num(cell2mat(head(15))); %#ok<ST2NM>
+        x.info.turns      = str2num(cell2mat(head(16))); %#ok<ST2NM>
+        x.info.area       = str2num(cell2mat(head(17))); %#ok<ST2NM>
+        x.info.f_ref      = str2double(cell2mat(head(18)));
+        x.info.P1         = str2double(cell2mat(head(19)));
+        x.info.delay      = str2double(char(head(20)))/1000;    % [s]
+        x.info.P2         = str2double(cell2mat(head(21)));
+
+        fgetl(fid);     % ignore to end of current line
+        fgetl(fid);     % ignore empty line
+        fgetl(fid);     % ignore T2* fit headerline                    
+
+        T2sfitpar = textscan(fid, '%*[^:] %*1c %f %f %f %f', 7);       
+        % read up to ], then read & ignore :, then read three f's
+        % old fitparameters are not required. Repeated in q section.
+
+        fgetl(fid);     % ignore to end of current line
+        fgetl(fid);     % ignore empty line
+        fgetl(fid);     % ignore empty line                        
+
+        % read q parameter section
+        fpos = ftell(fid);          % set file marker here
+        nql = 1;                    % count # of lines in q section
+        qsec{1} = fgetl(fid);       % read first line in q section
+        while ~isempty(qsec{nql})   % read to empty line after q section
+            nql = nql+1;
+            qsec{nql} = fgetl(fid); %#ok<AGROW>
+        end
+        fseek(fid, fpos, 'bof');  % return to marker at q sect
+        ql = 1:nql;
+        line_begin = ql(strcmp(qsec,'[Begin Results]'));    % identify line
+        line_end   = ql(strcmp(qsec,'[End Results]'));      % identify line
+                      
+        qdata = textscan(fid, '%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f',...
+            line_end-line_begin-1, 'headerlines', 3);
+        x.fit.q       = qdata{1}/1000;             % [As]
+        x.fit.delay   = qdata{2}/1000;             % [s]
+        x.fit.f       = qdata{3};
+        x.fit.V0  = [qdata{4} qdata{7} qdata{10} qdata{13} qdata{16} qdata{19} qdata{22}];    % [V] (gain is included)
+        x.fit.T2s = [qdata{5} qdata{8} qdata{11} qdata{14} qdata{17} qdata{20} qdata{23}]; % [s]
+        x.fit.rms = [qdata{6} qdata{9} qdata{12} qdata{15} qdata{18} qdata{21} qdata{24}];   % [V]
+        
+        fseek(fid, fpos, 'bof');        % return to marker at q sect
+        for ql = 1:line_end
+            fgetl(fid);                 % go to [End Results]
+        end
+        fgetl(fid);                     % ignore empty line
+        
+        if skipdata == 0
+            % read data section
+            T2sdata = textscan(fid, '%f %f %f %f %f %f %f %f %f',...
+               'headerlines', 2, 'commentStyle', '[');
+            itd      = find(abs(T2sdata{1} - x.info.tdead) == min(abs(T2sdata{1} - x.info.tdead)));    
+            itd      = itd(1); %strange thing: in some noise data files zero times entries are added at end of time series
+            x.t      = T2sdata{1}(itd:end) - T2sdata{1}(itd);   % cut dead time & pulse
+            x.v(:,1) = T2sdata{2}(itd:end)/x.info.gains(1); % CH 1 [V]
+            x.v(:,2) = T2sdata{3}(itd:end)/x.info.gains(2); % CH 2 [V]
+            x.v(:,3) = T2sdata{4}(itd:end)/x.info.gains(3); % CH 3 [V]
+            x.I      = T2sdata{5}(1:itd);
+            x.v(:,4) = T2sdata{6}(itd:end)/x.info.gains(5); % CH 5 [V]
+            x.v(:,5) = T2sdata{7}(itd:end)/x.info.gains(6); % CH 6 [V]
+            x.v(:,6) = T2sdata{8}(itd:end)/x.info.gains(7); % CH 7 [V]
+            x.v(:,7) = T2sdata{9}(itd:end)/x.info.gains(8); % CH 8 [V]
+        end
+        
     case 'Software rev. 291208'
         
         % read header section
@@ -121,10 +373,10 @@ switch x.info.version{1}
             T2sdata = textscan(fid, '%f %f %f %f %f',...
                'headerlines', 2, 'commentStyle', '[');
             itd      = find(abs(T2sdata{1} - x.info.tdead) == min(abs(T2sdata{1} - x.info.tdead)));           
-            x.t      = T2sdata{1}(itd:end) - T2sdata{1}(itd);   % cut dead time & pulse
-            x.v(:,1) = T2sdata{2}(itd:end)/x.info.gains(1)/x.info.turns(1); % CH 1 [V]
-            x.v(:,2) = T2sdata{3}(itd:end)/x.info.gains(2)/x.info.turns(2); % CH 2 [V]
-            x.v(:,3) = T2sdata{4}(itd:end)/x.info.gains(3)/x.info.turns(3); % CH 3 [V]
+            x.t      = T2sdata{1}(itd:end) - T2sdata{1}(itd(1));   % cut dead time & pulse
+            x.v(:,1) = T2sdata{2}(itd:end)/x.info.gains(1); % CH 1 [V]
+            x.v(:,2) = T2sdata{3}(itd:end)/x.info.gains(2); % CH 2 [V]
+            x.v(:,3) = T2sdata{4}(itd:end)/x.info.gains(3); % CH 3 [V]
             x.I      = T2sdata{5}(1:itd);
         end
         

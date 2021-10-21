@@ -9,12 +9,11 @@ function K = IntegrateK1D(measure, earth, Bcomps, Px, dh, dz, nturns)
 % CF = N*gamma^2*hq^2/(4*K*T);
 %=========================================================
 
-gamma           = 0.267518*1e9;
-
-pm_vec          = measure.pm_vec*nturns;
+gamma = 0.267518*1e9;
+pm_vec = measure.pm_vec*nturns;
 pm_vec_2ndpulse = measure.pm_vec_2ndpulse*nturns;
 
-Imax_vec        = measure.Imax_vec*nturns; % used for off-res excitation instead of pm_vec
+Imax_vec = measure.Imax_vec*nturns; % used for off-res excitation instead of pm_vec
 
 switch measure.pulsesequence
     case 1 %'FID' % single pulse kernel
@@ -29,6 +28,7 @@ switch measure.pulsesequence
                     % uncomment for full 3D fig8 kernel
                     %               K(n,:) = kern;
                 end
+                
             case 1 % single standard pulse (including off-resonance)
                 K     = zeros(length(pm_vec),1);
                 taup  = measure.taup1;
@@ -45,7 +45,8 @@ switch measure.pulsesequence
                         (Bcomps.alpha + Bcomps.beta) .* m;
                     K(n,:) = sum(sum(kern.*dh*dz));
                 end
-            case 2 % single-pulse adiabatic kernel using Bloch-modelled B
+                
+            case 2 % single-pulse adiabatic kernel using Bloch-modeled B
                 K     = zeros(length(Imax_vec),1);
                 for n = 1:length(Imax_vec )
                     A = 0.5 * Imax_vec (n) * (Bcomps.alpha - Bcomps.beta);
@@ -56,15 +57,26 @@ switch measure.pulsesequence
                         (Bcomps.alpha + Bcomps.beta) .* m;
                     K(n,:) = sum(sum(kern.*dh*dz));
                 end
+                
+            case 3 % Mp after imperfect PP-ramp switch-off
+				% EXPERIMENTAL
+                K = zeros(length(pm_vec),1);
+                for n = 1:length(pm_vec)
+                    m = complex(measure.Mp.x1,measure.Mp.y1);
+                    kern = gamma * earth.erdt^2 * 3.29e-3 * Bcomps.e_zeta.^2 .* ...
+                        (Bcomps.alpha + Bcomps.beta) .* m;
+                    K(n,:) = sum(sum(kern.*dh*dz));
+                end                
         end
-    case 2 %'T1' % double pulse T1 kernel
+        
+    case 2 %'T1' double pulse T1 kernel
         K = zeros(length(pm_vec)*length(measure.taud),1);
         for n = 1:length(pm_vec) % loop pulse moments            
             flip1 = 0.5 * gamma * pm_vec(n) * (Bcomps.alpha - Bcomps.beta);  
             for td=1:length(measure.taud) % loop tau
-                % for tau --> infinity (>50s) in T1 inversion first fid is used,
+                % for tau --> infinity (>50s) in T1 inversion first FID is used,
                 % i.e. first pulse
-                if measure.taud(td) < 50;
+                if measure.taud(td) < 50
                     flip2 = 0.5 * gamma * pm_vec_2ndpulse(n) * (Bcomps.alpha - Bcomps.beta);
                 else
                     flip2 = 0.5 * gamma * pm_vec(n) * (Bcomps.alpha - Bcomps.beta);  
@@ -74,12 +86,12 @@ switch measure.pulsesequence
                     sin(flip2).*(1-(1-cos(flip1))*exp(-measure.taud(td)/earth.T1cl));
                 K((td-1)*length(pm_vec) + n,:) = sum(sum(kern.*dh*dz));
             end
-        end
+        end     
         
-    case 3 %'T2' % double pulse T2 Kernel
+    case 3 %'T2' double pulse T2 Kernel
         K = zeros(length(pm_vec)*length(measure.taud),1);
         for n = 1:length(pm_vec) % loop pulse moments    
-            if pm_vec(n) == pm_vec_2ndpulse(n) % then q's come from kernel qui 
+            if pm_vec(n) == pm_vec_2ndpulse(n) % then q's come from kernel GUI 
                pm_vec_2ndpulse(n) = 2*pm_vec(n); % and need to multiplied by 2
             end
             flip1 = 0.5 * gamma * pm_vec(n) * (Bcomps.alpha - Bcomps.beta);

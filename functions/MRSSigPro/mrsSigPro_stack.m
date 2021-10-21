@@ -41,10 +41,10 @@ for iQ=1:nq % all pulse moments
                     % assemble stack
                     v_all  = zeros(nrec,length(t));
                     u_all  = zeros(nrec,length(t));
-                    if fdata.header.sequenceID == 8 && isig==2 % mod RD: save pulseform for AHP. 
-                        I_all   = zeros(nrec,length(fdata.Q(iQ).rec(1).tx.I));
-                        df_all  = zeros(nrec,length(fdata.Q(iQ).rec(1).tx.df));
-                    end
+%                     if fdata.header.sequenceID == 8 && isig==2 % mod RD: save pulseform for AHP. 
+%                         I_all   = zeros(nrec,length(fdata.Q(iQ).rec(1).tx.I));
+%                         df_all  = zeros(nrec,length(fdata.Q(iQ).rec(1).tx.df));
+%                     end
                     phases = zeros(1,nrec);
                     keep   = zeros(1,nrec);
                     pc     = zeros(1,nrec);
@@ -101,11 +101,11 @@ for iQ=1:nq % all pulse moments
                     end
                     
                     V  = sum(v_all(keep==1,:),1)/size(v_all(keep==1,:),1);
-                    if fdata.header.sequenceID == 8 && isig == 2 % mod RD: save pulseform for AHP. 
-                        I       = sum(I_all(keep==1,:),1)/size(I_all(keep==1,:),1);
-                        STD_I   = std(I_all(keep==1,:),1)/size(I_all(keep==1,:),1);                        
-                        df      = sum(df_all(keep==1,:),1)/size(df_all(keep==1,:),1);     
-                    end
+%                     if fdata.header.sequenceID == 8 && isig == 2 % mod RD: save pulseform for AHP. 
+%                         I       = sum(I_all(keep==1,:),1)/size(I_all(keep==1,:),1);
+%                         STD_I   = std(I_all(keep==1,:),1)/size(I_all(keep==1,:),1);                        
+%                         df      = sum(df_all(keep==1,:),1)/size(df_all(keep==1,:),1);     
+%                     end
                     
                     % delete nan from QD and get data error after stacking
                     if nrec > 1
@@ -146,12 +146,12 @@ for iQ=1:nq % all pulse moments
                         end
                         proclog.Q(iQ).rx(iirx).sig(isig).echotimes = echotimes;
                     end
-                    if fdata.header.sequenceID == 8 && isig == 2% mod RD: average pulseform for AHP. 
-                        proclog.Q(iQ).tx.I      = I;                   
-                        proclog.Q(iQ).tx.STD_I  = STD_I;                        
-                        proclog.Q(iQ).tx.df     = df;
-                        proclog.Q(iQ).tx.t_pulse = fdata.Q(iQ).rec(1).tx.t_pulse;
-                    end
+%                     if fdata.header.sequenceID == 8 && isig == 2% mod RD: average pulseform for AHP. 
+%                         proclog.Q(iQ).tx.I      = I;                   
+%                         proclog.Q(iQ).tx.STD_I  = STD_I;                        
+%                         proclog.Q(iQ).tx.df     = df;
+%                         proclog.Q(iQ).tx.t_pulse = fdata.Q(iQ).rec(1).tx.t_pulse;
+%                     end
                     
                 else
                     proclog.Q(iQ).rx(iirx).sig(isig).recorded = 0;

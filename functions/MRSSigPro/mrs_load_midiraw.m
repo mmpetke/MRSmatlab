@@ -72,9 +72,9 @@ D = sort(unique(D), 'ascend');
 % FID -> sig2 & sig3
 
 data.info.txinfo.channel   = 0;
-data.info.txinfo.looptype  = -1;
-data.info.txinfo.loopsize  = -1;
-data.info.txinfo.loopturns = -1;    % not available in midi file
+data.info.txinfo.looptype  = 2;     %default loop layout of midi tool!
+data.info.txinfo.loopsize  = 10;    %default loop layout of midi tool!
+data.info.txinfo.loopturns = 1;    %default loop layout of midi tool!
 
 %% Assemble output: data --------------------------------------------------
 data.info.device = 'MIDI';
@@ -82,8 +82,8 @@ data.info.device = 'MIDI';
 for iQ = 1:length(Q)
     
     % determine # recordings for this Q
-    allREC = dir([sounding_path rec_str num2str(Q(iQ)) '*.dat']);
-    allNSE = dir([sounding_path nse_str num2str(Q(iQ)) '*.dat']);
+    allREC = dir([sounding_path rec_str num2str(Q(iQ)) '_D*_R*.dat']);
+    allNSE = dir([sounding_path nse_str num2str(Q(iQ)) '_D*_R*.dat']);
     if isempty(allNSE)
         nosig1 = 1;
     else
@@ -100,6 +100,7 @@ for iQ = 1:length(Q)
         
         data.Q(iQ).rec(irec).info.file = ...
             [sounding_path fo1_str allREC(irec).name];
+        disp(['read file:' data.Q(iQ).rec(irec).info.file]);
         midiout  = mrs_readmidi(data.Q(iQ).rec(irec).info.file);
         if nosig1 == 0
             noiseout = mrs_readmidi([sounding_path fo2_str allNSE(irec).name]);
@@ -107,7 +108,7 @@ for iQ = 1:length(Q)
         
         data.Q(iQ).q = [];                  % defined later as mean(qvalue)
         qvalue(irec) = midiout.info.q;      % value of pulse moment [A.s]
-        
+        numRx        = size(midiout.v,2);
 %         if (fidin2 ~= -1)
 %             data.Q(iQ).q2 = q2(iQ); % [A.s]
 %         end                
@@ -149,17 +150,29 @@ for iQ = 1:length(Q)
         % phase of echo 
         data.Q(iQ).rec(irec).info.phases.phi(4) = 0;
         
+        % signal phases (same for all receivers)
+                % phase of noise
+        data.Q(iQ).rec(irec).info.phases.phi_timing(1) = 0;
+        data.Q(iQ).rec(irec).info.phases.phi_timing(2) = 0;
+        
         irx = 0;
-        for imidirx  = 1:3 % max 3 midi receiver
+        for imidirx  = 1:numRx
             if length(unique(midiout.v(:,imidirx))) > 1 % if connected
                 irx = irx + 1;  % index of connected receiver
 %                 data.Q(iQ).rec(irec).rx(irx).connected = 1;
 
                 data.info.rxinfo(imidirx).channel = imidirx;
-                data.info.rxinfo(imidirx).task    = 1;      % default
-                data.info.rxinfo(imidirx).looptype  = -1;   % n/a
-                data.info.rxinfo(imidirx).loopsize  = -1;   % n/a
-                data.info.rxinfo(imidirx).loopturns = -1;   % n/a
+                if imidirx == 1
+                    %Channel 1 is for detection by default
+                    data.info.rxinfo(imidirx).task    = 1;      
+                else
+                    %consider all channels > 1 to be reference channel 
+                    %and make NC available in MRSMatlab
+                    data.info.rxinfo(imidirx).task    = 2;       
+                end
+                data.info.rxinfo(imidirx).looptype  = 2;   % default loop layout of midi tool!
+                data.info.rxinfo(imidirx).loopsize  = 10;   % default loop layout of midi tool!
+                data.info.rxinfo(imidirx).loopturns = 12;   %number of turns is actually 12, but the voltage is corrected in mrs_readmidi.m
                 
                 isig = 2;    % only sig2 here
                 data.Q(iQ).rec(irec).rx(irx).sig(isig).recorded = 1;

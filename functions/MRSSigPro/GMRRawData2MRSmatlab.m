@@ -30,10 +30,15 @@ if dofilter
         Fstop       = [5000];  % Stopband Frequency
         Apass       = 1;     % Passband Ripple (dB)
         Astop       = 50;    % Stopband Attenuation (dB)
+%         Fpass       = [500 3000];   % Passband Frequency
+%         Fstop       = [100 5000];  % Stopband Frequency
+%         Apass       = 3;     % Passband Ripple (dB)
+%         Astop       = 30;    % Stopband Attenuation (dB)
         [N,Fc]      = buttord(Fpass/(Fs/2), Fstop/(Fs/2), Apass, Astop);
         [b,a]       = butter(N, Fc);
     end
     rate            = (Fs/2)/Fstop; % reduce rate ,i.e., re-samling
+%     rate            = (Fs/2)/Fstop(2); % reduce rate ,i.e., re-samling
     fs              = Fs/rate;
     deadtime        = fdata.header.tau_dead + (100 + rate)/Fs;
     

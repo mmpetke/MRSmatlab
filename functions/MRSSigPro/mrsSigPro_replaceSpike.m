@@ -61,6 +61,7 @@ for iirec = rec
 end
 V  = sum(v_all(keep==1,:),1)/size(v_all(keep==1,:),1);
 
+
 %% check if input in fixme is already a window or automatic detection is selected
 
 if threshold == -1 % manual
@@ -134,6 +135,7 @@ else % automatic detection by threshold
                     end
                 end
             end
+            
             outlier        = abs(v_all(irec,:)) > (mean(abs(v_all)) + threshold*median(std(abs(v_all)))); % single data point
             %outlier2       = std(v_all(:,:).') > threshold*median(std(v_all(:,:).')); % complete record 
             index_outlier  = (1:length(outlier))';

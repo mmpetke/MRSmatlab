@@ -1477,42 +1477,55 @@ end
                 end    
                 
             case 'MIDI'     % get ini's from latest stacked ("+") file
-                if isdir([proclog.path 'fids'])              % after rename
-                    fol_str = ['stacked' filesep];
-                    stk_str = [fol_str '*_stk_*.dat'];
-                elseif ~isempty(dir([proclog.path 'FID_*'])) % Software rev.
-                    stk_str = 'FID+*.dat';
-                    fol_str = '';
-                else
-                    error('Unknown filename format. Probably old unsupported MIDI version')
-                end                                
-                
-                % determine largest/latest file -> contains all q info
-                resultfiles = dir([proclog.path stk_str]);
-                latestfile = resultfiles([resultfiles(:).bytes]==max([resultfiles(:).bytes])).name;
-                midifitini = mrs_readmidi([proclog.path fol_str latestfile],1);
-
+                % set to defaults
                 for iQ = 1:length(proclog.Q)
-                    currentQ = abs(midifitini.fit.q-proclog.Q(iQ).q) == min(abs(midifitini.fit.q-proclog.Q(iQ).q));
-                    for irx = 1:length(proclog.rxinfo)   % rx4 is not connected for midi
-                            for isig = 1:4 % fuer 1 & 4 sinnlos...
-                                if proclog.Q(iQ).rx(irx).sig(isig).recorded
-
-                                    ini = [midifitini.fit.V0(currentQ, irx) ...
-                                           midifitini.fit.T2s(currentQ, irx) ...
-                                           0 0];
-
-                                    ini(isnan(ini)) = mean([lb(isnan(ini)); ub(isnan(ini))],1);
-                                    ini(lb>=ini) = lb(lb>=ini);
-                                    ini(ub<=ini) = ub(ub<=ini);
-
-                                    proclog.Q(iQ).rx(irx).sig(isig).lb  = lb;
-                                    proclog.Q(iQ).rx(irx).sig(isig).ub  = ub;
-                                    proclog.Q(iQ).rx(irx).sig(isig).ini = ini;
-                                end
+                    for irx = 1:length(proclog.rxinfo)
+                        for isig = 1:4 %
+                            if proclog.Q(iQ).rx(irx).sig(isig).recorded
+                                proclog.Q(iQ).rx(irx).sig(isig).lb  = lb;
+                                proclog.Q(iQ).rx(irx).sig(isig).ub  = ub;
+                                proclog.Q(iQ).rx(irx).sig(isig).ini = ini;
                             end
+                        end
                     end
-                end                  
+                end
+                
+%                 if isdir([proclog.path 'fids'])              % after rename
+%                     fol_str = ['stacked' filesep];
+%                     stk_str = [fol_str '*_stk_*.dat'];
+%                 elseif ~isempty(dir([proclog.path 'FID_*'])) % Software rev.
+%                     stk_str = 'FID+*.dat';
+%                     fol_str = '';
+%                 else
+%                     error('Unknown filename format. Probably old unsupported MIDI version')
+%                 end                                
+%                 
+%                 % determine largest/latest file -> contains all q info
+%                 resultfiles = dir([proclog.path stk_str]);
+%                 latestfile = resultfiles([resultfiles(:).bytes]==max([resultfiles(:).bytes])).name;
+%                 midifitini = mrs_readmidi([proclog.path fol_str latestfile],1);
+% 
+%                 for iQ = 1:length(proclog.Q)
+%                     currentQ = abs(midifitini.fit.q-proclog.Q(iQ).q) == min(abs(midifitini.fit.q-proclog.Q(iQ).q));
+%                     for irx = 1:length(proclog.rxinfo)   % rx4 is not connected for midi
+%                             for isig = 1:4 % fuer 1 & 4 sinnlos...
+%                                 if proclog.Q(iQ).rx(irx).sig(isig).recorded
+% 
+%                                     ini = [midifitini.fit.V0(currentQ, irx) ...
+%                                            midifitini.fit.T2s(currentQ, irx) ...
+%                                            0 0];
+% 
+%                                     ini(isnan(ini)) = mean([lb(isnan(ini)); ub(isnan(ini))],1);
+%                                     ini(lb>=ini) = lb(lb>=ini);
+%                                     ini(ub<=ini) = ub(ub<=ini);
+% 
+%                                     proclog.Q(iQ).rx(irx).sig(isig).lb  = lb;
+%                                     proclog.Q(iQ).rx(irx).sig(isig).ub  = ub;
+%                                     proclog.Q(iQ).rx(irx).sig(isig).ini = ini;
+%                                 end
+%                             end
+%                     end
+%                 end                  
 
             case {'NUMISpoly','NUMISplus'}    % get ini's from .inp & .in2 files
         
